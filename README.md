@@ -45,7 +45,7 @@ Git instalado
  Passos:
  
 Clonar o repositório
-git clone https://github.com/henriquebel777-gif/TecnoBase/edit/main/README.md
+git clone https://github.com/henriquebel777-gif/TecnoBase
 
 Entrar na pasta
 tecnobase
