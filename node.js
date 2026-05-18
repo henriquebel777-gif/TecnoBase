@@ -40,7 +40,7 @@ async function atualizarProdutos(){
         </tr>`;
     });
 }
-
+/**/
 window.onload = () => {
     atualizarClientes();
     atualizarProdutos();
