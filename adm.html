@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>Tecnobase</title>
+
+
+<style>
+    * { margin:0; padding:0; box-sizing:border-box; font-family: Arial; }
+    
+    body {
+        background: linear-gradient(135deg, #1e3c72, #2a5298);
+        color: white;
+    }
+    
+    header { text-align: center; padding: 20px; }
+    
+    nav {
+        display: flex;
+        justify-content: center;
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+    
+    nav button {
+        padding: 10px 20px;
+        border-radius: 8px;
+        cursor: pointer;
+        background: white;
+    }
+    
+    section {
+        display: none;
+        max-width: 900px;
+        margin: auto;
+        background: rgba(255,255,255,0.1);
+        padding: 20px;
+        border-radius: 10px;
+    }
+    
+    .active { display: block; }
+    
+    input, select {
+        padding: 10px;
+        margin: 5px;
+        border-radius: 5px;
+        border: none;
+    }
+    
+    button {
+        padding: 8px;
+        margin: 2px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+    }
+    
+    .salvar { background: #00ff88; }
+    .editar { background: #ffd700; }
+    .excluir { background: #ff4d4d; color: white; }
+    
+    table {
+        width: 100%;
+        margin-top: 20px;
+        border-collapse: collapse;
+        background: white;
+        color: black;
+    }
+    
+    th, td {
+        padding: 10px;
+        border: 1px solid #ccc;
+    }
+    
+    .baixo { background: #ffcccc; }
+    
+    .modal{
+        display:none;
+        position:fixed;
+        inset:0;
+        background:rgba(0,0,0,0.7);
+        justify-content:center;
+        align-items:center;
+        z-index:999;
+    }
+
+    .modal-content{
+        background:white;
+        color:black;
+        padding:25px;
+        border-radius:12px;
+        width:350px;
+        animation:fade .2s;
+    }
+    
+    .modal-content h2{
+        margin-bottom:10px;
+    }
+    
+    .modal-content p{
+        margin-bottom:15px;
+    }
+    
+    .modal-content input{
+        width:100%;
+        margin-bottom:15px;
+    }
+    
+    .modal-buttons{
+        display:flex;
+        justify-content:flex-end;
+        gap:10px;
+    }
+    
+    @keyframes fade{
+        from{
+            transform:scale(.9);
+            opacity:0;
+        }
+        
+        to{
+            transform:scale(1);
+            opacity:1;
+        }
+    }
+    
+    #toast{
+        position:fixed;
+        bottom:20px;
+        right:20px;
+        background:#00cc6a;
+        color:white;
+        padding:15px 20px;
+        border-radius:8px;
+        display:none;
+        z-index:9999;
+    }
+    
+    
+    
+    </style>
+
+<script>
+    
+    const user = JSON.parse(localStorage.getItem("usuario"));
+    
+    if (!user || user.tipo !== "admin") {
+        alert("Acesso restrito");
+        window.location.href = "user.html";
+    }
+    
+    function irUser(){
+        window.location.href = "user.html";
+    }
+    
+    function logout(){
+        localStorage.removeItem("usuario");
+        window.location.href = "login.html";
+    }
+    
+    const API = "http://localhost:3000";
+    
+    // TROCAR TELA
+    function trocarTela(tela) {
+    document.querySelectorAll("section").forEach(s => s.classList.remove("active"));
+    document.getElementById(tela).classList.add("active");
+}
+
+// ================= CLIENTES =================
+async function atualizarClientes(){
+    try {
+        let res = await fetch(API + "/clientes");
+        let dados = await res.json();
+        
+        let tabela = document.getElementById("tabelaClientes");
+        tabela.innerHTML = "";
+        
+        dados.forEach(c => {
+            tabela.innerHTML += `
+            <tr>
+                <td>${c.id_cliente}</td>
+                <td>${c.nome}</td>
+                <td>
+                    <button class="editar" onclick="editarCliente(${c.id_cliente}, this.dataset.nome)" data-nome="${c.nome}">Editar</button>
+                    <button class="excluir" onclick="excluirCliente(${c.id_cliente})">Excluir</button>
+                    </td>
+                    </tr>`;
+                });
+            } catch(e){
+                console.log(e);
+                alert("Erro ao carregar clientes");
+            }
+        }
+        
+        async function editarCliente(id, nome){
+            
+            abrirModal({
+                titulo:"Editar Cliente",
+                texto:"Digite o novo nome:",
+                input:true,
+                valor:nome,
+                
+                onConfirm: async (novoNome) => {
+                    
+                    if(!novoNome) return;
+                    
+                    try {
+                        
+                        let res = await fetch(API + "/clientes/" + id,{
+                            method:"PUT",
+                            headers:{
+                                "Content-Type":"application/json"
+                            },
+                            body:JSON.stringify({
+                                nome:novoNome
+                            })
+                        });
+                        
+                        if(!res.ok){
+                            throw new Error();
+                        }
+                        
+                        atualizarClientes();
+                        carregarSelects();
+                        
+                        toast("Cliente atualizado!");
+                        
+                    } catch(e){
+                        alert("Erro ao editar cliente");
+                    }
+                }
+            });
+        }
+        
+        async function excluirCliente(id){
+
+    abrirModal({
+        titulo:"Excluir Cliente",
+        texto:"Deseja realmente excluir este cliente?",
+
+        onConfirm: async () => {
+
+            try {
+
+                let res = await fetch(API + "/clientes/" + id, {
+                    method:"DELETE"
+                });
+
+                if(!res.ok){
+
+                    const erro = await res.text();
+
+                    alert(erro);
+
+                    return;
+                }
+
+                atualizarClientes();
+                carregarSelects();
+
+                toast("Cliente excluído!");
+
+            } catch(e){
+                alert("Erro ao excluir cliente");
+            }
+        }
+    });
+}
+        
+        // ================= PRODUTOS =================
+        async function atualizarProdutos(){
+            try {
+                let res = await fetch(API + "/produtos");
+                let dados = await res.json();
+                
+                let tabela = document.getElementById("tabelaProdutos");
+                tabela.innerHTML = "";
+                
+                dados.forEach(p => {
+                    let baixo = p.quantidade <= p.estoque_minimo;
+                    
+                    tabela.innerHTML += `
+                    <tr class="${baixo ? 'baixo':''}">
+                        <td>${p.id_produto}</td>
+                        <td>${p.nome}</td>
+                        <td>R$ ${p.preco}</td> <!-- 👈 ADD -->
+                        <td>${p.quantidade}</td>
+                        <td>${p.estoque_minimo}</td>
+                        <td>${baixo ? '⚠️ Baixo' : 'OK'}</td>
+                        <td>
+                            <button class="editar"
+                            onclick="editarProduto(${p.id_produto}, this.dataset.nome, ${p.quantidade}, ${p.estoque_minimo})"
+                            data-nome="${p.nome}">
+                            Editar
+                            </button>
+                            <button class="excluir" onclick="excluirProduto(${p.id_produto})">Excluir</button>
+                            </td>
+                            </tr>`;
+                        });
+                    } catch(e){
+                        alert("Erro ao carregar produtos");
+                    }
+                }
+                
+                async function adicionarProduto(e){
+                    e.preventDefault();
+                    
+                    try {
+                        const nome = document.getElementById("nomeProduto").value;
+                        const preco = document.getElementById("precoProduto").value;
+                        const quantidade = document.getElementById("qtdProduto").value;
+                        const estoque_minimo = document.getElementById("minProduto").value;
+                        
+                        let res = await fetch(API + "/produtos", {
+                            method:"POST",
+                            headers:{"Content-Type":"application/json"},
+                            body: JSON.stringify({ nome, preco, quantidade, estoque_minimo })
+                        });
+                        
+                        if(!res.ok) throw new Error();
+                        
+                        atualizarProdutos();
+                        carregarSelects();
+                        
+                    } catch(e){
+                        alert("Erro ao adicionar produto");
+                    }
+                }
+                
+                async function editarProduto(id, nome, qtd, min){
+
+    abrirModal({
+        titulo:"Editar Produto",
+        texto:"Digite o novo nome do produto:",
+        input:true,
+        valor:nome,
+
+        onConfirm: async (novoNome) => {
+
+            if(!novoNome) return;
+
+            try {
+
+                let res = await fetch(API + "/produtos/" + id, {
+                    method:"PUT",
+                    headers:{
+                        "Content-Type":"application/json"
+                    },
+                    body: JSON.stringify({
+                        nome: novoNome,
+                        quantidade: qtd,
+                        estoque_minimo: min
+                    })
+                });
+
+                if(!res.ok){
+                    throw new Error();
+                }
+
+                atualizarProdutos();
+
+                toast("Produto atualizado!");
+
+            } catch(e){
+                alert("Erro ao editar produto");
+            }
+        }
+    });
+}
+                
+                async function excluirProduto(id){
+                    
+                    abrirModal({
+                        titulo:"Excluir Produto",
+                        texto:"Deseja realmente excluir este produto?",
+                        
+                        onConfirm: async () => {
+                            
+                            try {
+                                
+                                let res = await fetch(API + "/produtos/" + id, {
+                                    method:"DELETE"
+                                });
+                                
+                                if(!res.ok){
+                                    throw new Error();
+                                }
+                                
+                                atualizarProdutos();
+                                carregarSelects();
+                                
+                                toast("Produto excluído!");
+                                
+                            } catch(e){
+                                alert("Erro ao excluir produto");
+                            }
+                        }
+                    });
+                }
+                
+                // ================= VENDAS =================
+                async function atualizarVendas(){
+                    try {
+                        let res = await fetch(API + "/vendas");
+                        let dados = await res.json();
+                        let tabela = document.getElementById("tabelaVendas");
+                        tabela.innerHTML = "";
+                        
+                        dados.forEach(v => {
+                            tabela.innerHTML += `
+                            <tr>
+                                <td>${v.id_pedido}</td> 
+                                <td>${v.produto}</td>
+                                <td>${v.cliente}</td>
+                                <td>${v.quantidade}</td>
+                                <td>
+                                    <button class="excluir" onclick="excluirVenda(${v.id_pedido})">Excluir</button>
+                                    </td>
+                                    </tr>`;
+                                });
+                            } catch(e){ alert("Erro ao carregar vendas"); }
+                        }
+                        
+                        async function excluirVenda(id){
+
+    abrirModal({
+        titulo:"Excluir Venda",
+        texto:"Deseja cancelar esta venda?",
+
+        onConfirm: async () => {
+
+            try {
+
+                let res = await fetch(API + "/vendas/" + id, {
+                    method:"DELETE"
+                });
+
+                if(!res.ok){
+                    throw new Error();
+                }
+
+                atualizarVendas();
+                atualizarProdutos();
+
+                toast("Venda cancelada!");
+
+            } catch(e){
+                alert("Erro ao excluir venda");
+            }
+        }
+    });
+}
+                        
+                        // ================= SELECTS =================
+                        async function carregarSelects(){
+                            try {
+                                let clientes = await fetch(API + "/clientes").then(r => r.json());
+                                let produtos = await fetch(API + "/produtos").then(r => r.json());
+                                
+                                let sc = document.getElementById("selectCliente");
+                                let sp = document.getElementById("selectProduto");
+                                
+                                sc.innerHTML = '<option value="">Cliente</option>';
+                                sp.innerHTML = '<option value="">Produto</option>';
+                                
+                                clientes.forEach(c => {
+                                    sc.innerHTML += <option value="${c.id_cliente}">${c.nome}</option>;
+                                });
+                                
+                                produtos.forEach(p => {
+                                    sp.innerHTML += <option value="${p.id_produto}">${p.nome}</option>;
+                                });
+                                
+                            } catch(e){
+                                console.log(e);
+                            }
+                        }
+                        
+                        // ================= VENDA =================
+                        async function realizarVenda(e){
+                            e.preventDefault();
+                            
+                            try {
+                                const id_cliente = document.getElementById("selectCliente").value;
+                                const id_produto = document.getElementById("selectProduto").value;
+                                const quantidade = document.getElementById("qtdVenda").value;
+                                
+                                let res = await fetch(API + "/vendas", {
+                                    method:"POST",
+            headers:{"Content-Type":"application/json"},
+            body: JSON.stringify({ id_cliente, id_produto, quantidade })
+        });
+        
+        if(!res.ok) throw new Error();
+        
+        atualizarProdutos();
+        atualizarVendas();
+        
+    } catch(e){
+        alert("Erro ao registrar venda");
+    }
+}
+
+
+
+
+function abrirModal({
+    titulo = "",
+    texto = "",
+    input = false,
+    valor = "",
+    onConfirm = null
+}){
+    
+    document.getElementById("modal").style.display = "flex";
+    
+    document.getElementById("modalTitulo").innerText = titulo;
+    
+    document.getElementById("modalTexto").innerText = texto;
+    
+    const inputEl = document.getElementById("modalInput");
+    
+    if(input){
+        inputEl.style.display = "block";
+        inputEl.value = valor;
+    }else{
+        inputEl.style.display = "none";
+    }
+    
+    document.getElementById("modalConfirmar").onclick = () => {
+        
+        const valorInput = inputEl.value;
+        
+        fecharModal();
+        
+        if(onConfirm){
+            onConfirm(valorInput);
+        }
+    };
+}
+
+function fecharModal(){
+    document.getElementById("modal").style.display = "none";
+}
+
+function toast(msg){
+    
+    const toast = document.getElementById("toast");
+    
+    toast.innerText = msg;
+    
+    toast.style.display = "block";
+    
+    setTimeout(()=>{
+        toast.style.display = "none";
+    },3000);
+}
+
+// LOAD
+window.onload = () => {
+    atualizarClientes();
+    atualizarProdutos();
+    atualizarVendas();
+    carregarSelects();
+};
+</script>
+
+</head>
+
+<body>
+    
+    <button onclick="irUser()">Ir para Loja</button>
+    <button onclick="logout()">Sair</button>
+    <header>
+        <h1>Sistema Tecnobase</h1>
+        <h2>Controle de Estoque</h2>
+    </header>
+    
+    <nav>
+        <button onclick="trocarTela('clientes')">Clientes</button>
+        <button onclick="trocarTela('produtos')">Produtos</button>
+        <button onclick="trocarTela('vendas')">Vendas</button>
+    </nav>
+    
+    <section id="clientes" class="active">
+        <h2>Clientes</h2>
+        <table>
+<thead>
+<tr><th>ID</th><th>Nome</th><th>Ações</th></tr>
+</thead>
+<tbody id="tabelaClientes"></tbody>
+</table>
+</section>
+
+<section id="produtos">
+<h2>Produtos</h2>
+
+<form onsubmit="adicionarProduto(event)">
+<input id="nomeProduto" placeholder="Nome">
+<input id="precoProduto" type="number" placeholder="Preço">
+<input id="qtdProduto" type="number" placeholder="Quantidade">
+<input id="minProduto" type="number" placeholder="Estoque mínimo">
+<button class="salvar">Adicionar</button>
+</form>
+
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Produto</th>
+<th>Preço</th> <!-- 👈 ADD -->
+<th>Qtd</th>
+<th>Estoque mínimo</th>
+<th>Status</th>
+<th>Ações</th>
+</tr>
+</thead>
+<tbody id="tabelaProdutos"></tbody>
+</table>
+</section>
+
+<section id="vendas">
+<h2>Vendas</h2>
+
+<form onsubmit="realizarVenda(event)">
+<select id="selectCliente"></select>
+<select id="selectProduto"></select>
+<input type="number" id="qtdVenda" placeholder="Quantidade">
+<button class="salvar">Registrar</button>
+</form>
+
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Produto</th>
+<th>Cliente</th>
+<th>Quantidade</th>
+<th>Ações</th>
+</tr>
+</thead>
+<tbody id="tabelaVendas"></tbody>
+</table>
+
+</section>
+<!-- MODAL -->
+<div id="modal" class="modal">
+    <div class="modal-content">
+
+        <h2 id="modalTitulo"></h2>
+
+        <p id="modalTexto"></p>
+
+        <input type="text" id="modalInput" style="display:none;">
+
+        <div class="modal-buttons">
+            <button onclick="fecharModal()">Cancelar</button>
+
+            <button id="modalConfirmar">
+                Confirmar
+            </button>
+        </div>
+
+    </div>
+</div>
+
+<div id="toast"></div>
+
+</body>
+</html>
