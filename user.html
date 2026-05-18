@@ -1,1 +1,288 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>TecnoBase Loja</title>
+
+<button onclick="irAdmin()">Ir para Admin</button>
+<button onclick="logout()">Sair</button>
+
+<style>
+* {
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family: Arial;
+}
+
+body {
+    background: linear-gradient(135deg, #1e3c72, #3a6edb);
+    color: white;
+}
+
+header {
+    text-align: center;
+    padding: 20px;
+}
+
+h1 {
+    margin-bottom: 5px;
+}
+
+.container {
+    max-width: 1100px;
+    margin: auto;
+    padding: 20px;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 20px;
+}
+
+.card {
+    background: rgba(255,255,255,0.15);
+    padding: 20px;
+    border-radius: 12px;
+    text-align: center;
+    backdrop-filter: blur(5px);
+    transition: 0.2s;
+}
+
+.card:hover {
+    transform: scale(1.03);
+}
+
+.card h3 {
+    margin-bottom: 10px;
+}
+
+.preco {
+    font-size: 18px;
+    font-weight: bold;
+    color: #00ffcc;
+    margin: 10px 0;
+}
+
+.estoque {
+    font-size: 14px;
+    margin-bottom: 10px;
+}
+
+button {
+    background: #00ff88;
+    border: none;
+    padding: 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    width: 100%;
+    font-weight: bold;
+}
+
+button:hover {
+    background: #00cc6a;
+}
+
+.faq{
+    max-width:900px;
+    margin:40px auto;
+    padding:20px;
+    background:rgba(255,255,255,0.1);
+    border-radius:12px;
+}
+
+.faq h2{
+    margin-bottom:20px;
+    text-align:center;
+}
+
+.faq-item{
+    margin-bottom:10px;
+}
+
+.faq-question{
+    width:100%;
+    background:#ffffff22;
+    color:white;
+    border:none;
+    padding:15px;
+    text-align:left;
+    border-radius:8px;
+    cursor:pointer;
+    font-size:16px;
+}
+
+.faq-answer{
+    display:none;
+    padding:15px;
+    background:#00000022;
+    border-radius:8px;
+    margin-top:5px;
+}
+
+
+</style>
+</head>
+
+<body>
+
+<header>
+    <h1>Sistema TecnoBase</h1>
+    <h2 id="msg"></h2>
+</header>
+
+<div class="container">
+    <div class="grid" id="vitrine"></div>
+
+
+
+<!-- //FAQ ADICIONADO ABAIXO -->
+    <section class="faq">
+    <h2>Perguntas Frequentes</h2>
+
+    <div class="faq-item">
+        <button class="faq-question">
+            Como comprar um produto?
+        </button>
+
+        <div class="faq-answer">
+            Basta clicar no botão comprar do produto desejado.
+        </div>
+    </div>
+
+    <div class="faq-item">
+        <button class="faq-question">
+            Como funciona o estoque?
+        </button>
+
+        <div class="faq-answer">
+            Os produtos diminuem automaticamente após cada compra.
+        </div>
+    </div>
+
+    <div class="faq-item">
+        <button class="faq-question">
+            Posso cancelar compras?
+        </button>
+
+        <div class="faq-answer">
+            Sim. O administrador pode excluir vendas no painel admin.
+        </div>
+    </div>
+</section>
+
+
+
+</div>
+
+
+<script>
+
+function irAdmin(){
+    window.location.href = "adm.html";
+}
+
+function logout(){
+    localStorage.removeItem("usuario");
+    window.location.href = "login.html";
+}  
+
+const API = "http://localhost:3000";
+
+const user = JSON.parse(localStorage.getItem("usuario"));
+
+if (!user) {
+    window.location.href = "login.html";
+} else {
+    document.getElementById("msg").innerText =
+        `Olá, ${user.nome}! Escolha seus produtos:`;
+}
+
+// ================= CARREGAR LOJA =================
+async function carregarLoja() {
+    try {
+        const res = await fetch(`${API}/produtos`);
+        const produtos = await res.json();
+
+        const vitrine = document.getElementById("vitrine");
+
+        vitrine.innerHTML = produtos.map(p => `
+            <div class="card">
+                <h3>${p.nome}</h3>
+                <p class="preco">R$ ${p.preco}</p>
+                <p class="estoque">Estoque: ${p.quantidade}</p>
+                <button onclick="comprar(${p.id_produto})">Comprar</button>
+            </div>
+        `).join("");
+
+    } catch (e) {
+        console.error(e);
+        alert("Erro ao carregar produtos");
+    }
+}
+
+// ================= COMPRAR =================
+async function comprar(id) {
+    try {
+        const res = await fetch(`${API}/vendas`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                id_cliente: user.id_cliente,
+                id_produto: id,
+                quantidade: 1
+            })
+        });
+
+        if (!res.ok) throw new Error();
+
+       toast("Compra realizada!");
+        carregarLoja();
+
+    } catch (e) {
+        alert("Erro ao realizar compra");
+    }
+}
+
+document.querySelectorAll(".faq-question").forEach(btn => {
+    btn.addEventListener("click", () => {
+
+        const resposta = btn.nextElementSibling;
+
+        resposta.style.display =
+            resposta.style.display === "block"
+            ? "none"
+            : "block";
+    });
+});
+
+carregarLoja();
+
+function toast(msg){
+
+    const div = document.createElement("div");
+
+    div.innerText = msg;
+
+    div.style.position = "fixed";
+    div.style.bottom = "20px";
+    div.style.right = "20px";
+    div.style.background = "#00cc6a";
+    div.style.color = "white";
+    div.style.padding = "15px";
+    div.style.borderRadius = "8px";
+    div.style.zIndex = "9999";
+
+    document.body.appendChild(div);
+
+    setTimeout(()=>{
+        div.remove();
+    },3000);
+}
+
+</script>
+
+</body>
+</html>
 
