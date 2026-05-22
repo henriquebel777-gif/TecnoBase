@@ -1,0 +1,90 @@
+drop database tecnobase;
+
+CREATE DATABASE TecnoBase;
+USE TecnoBase;
+
+-- 1. TABELA CLIENTES (Com Senha e Email Único)
+CREATE TABLE clientes (
+    id_cliente INT PRIMARY KEY AUTO_INCREMENT,
+    nome VARCHAR(100) NOT NULL,
+    telefone VARCHAR(20),
+    email VARCHAR(100) NOT NULL UNIQUE,
+    senha VARCHAR(255) NOT NULL -- Espaço para Hash de senha
+);
+
+-- 2. TABELA PRODUTOS
+CREATE TABLE produtos (
+    id_produto INT PRIMARY KEY AUTO_INCREMENT,
+    nome VARCHAR(100) NOT NULL,
+    descricao TEXT NOT NULL,
+    preco DECIMAL(10,2) NOT NULL,
+    estoque_minimo INT DEFAULT 5
+);
+
+-- 3. TABELA ESTOQUE (Controle de quantidades e locais)
+CREATE TABLE estoque (
+    id_estoque INT PRIMARY KEY AUTO_INCREMENT,
+    id_produto INT NOT NULL,
+    quantidade INT NOT NULL DEFAULT 0,
+    localizacao VARCHAR(50),
+    FOREIGN KEY (id_produto) REFERENCES produtos(id_produto) ON DELETE CASCADE
+);
+
+-- 4. TABELA VENDAS (Antiga Pedidos)
+CREATE TABLE vendas (
+    id_venda INT PRIMARY KEY AUTO_INCREMENT,
+    id_cliente INT NOT NULL,
+    data_venda DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (id_cliente) REFERENCES clientes(id_cliente) ON DELETE CASCADE
+);
+
+-- 5. TABELA ITENS_VENDA (Itens de cada venda)
+CREATE TABLE itens_venda (
+    id_item INT PRIMARY KEY AUTO_INCREMENT,
+    id_venda INT NOT NULL,
+    id_produto INT NOT NULL,
+    quantidade INT NOT NULL,
+    preco_unitario DECIMAL(10,2) NOT NULL, -- Preço no momento da venda
+    FOREIGN KEY (id_venda) REFERENCES vendas(id_venda) ON DELETE CASCADE,
+    FOREIGN KEY (id_produto) REFERENCES produtos(id_produto) ON DELETE CASCADE
+);
+
+-- ==========================================
+-- POPULANDO DADOS PARA TESTE RÁPIDO
+-- ==========================================
+
+INSERT INTO clientes (nome, telefone, email, senha) VALUES
+('Admin Teste', '81999990000', 'admin@email.com', '123456'),
+('João Silva', '81999990001', 'joao@email.com', 'senha123');
+
+INSERT INTO produtos (nome, descricao, preco) VALUES
+('Processador Ryzen 5', '6 núcleos 12 threads', 899.90),
+('Placa de Vídeo RTX 3060', '12GB GDDR6', 1899.90),
+('SSD 1TB NVMe', '3500MB/s', 499.90);
+
+INSERT INTO estoque (id_produto, quantidade, localizacao) VALUES
+(1, 15, 'C1-P1'),
+(2, 5, 'C1-P2'),
+(3, 10, 'C2-P1');
+
+INSERT INTO vendas (id_cliente) VALUES (1);
+
+INSERT INTO itens_venda (id_venda, id_produto, quantidade, preco_unitario) VALUES
+(1, 1, 1, 899.90),
+(1, 3, 2, 499.90);
+
+select * from clientes;
+
+
+alter table produtos
+drop column preco;
+
+alter table produtos
+drop column descricao;
+ALTER TABLE itens_venda DROP COLUMN preco_unitario;
+
+UPDATE produtos SET preco = 100 WHERE preco = 0;
+ALTER TABLE clientes ADD tipo ENUM('admin','cliente') DEFAULT 'cliente';
+UPDATE clientes 
+SET tipo = 'admin' 
+WHERE email = 'pablohenrique@gmail.com';
